@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the workflow can read the code and nothing else.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Every action is pinned to a full commit SHA; Dependabot proposes updates.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
+          cache-dependency-path: go/go.sum
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - name: Setup, lint and unit tests (Go with the race detector)
+        run: make setup lint test RACE=-race
+      - name: End-to-end trace across Go, Python and Node.js
+        shell: bash
+        run: |
+          set -o pipefail
+          make e2e 2>&1 | tee e2e.log
+      - name: End-to-end result as an annotation (logs need signing in)
+        if: always()
+        shell: bash
+        run: |
+          if grep -q '^--- FAIL' e2e.log || ! grep -q 'RESULT complete' e2e.log; then
+            tail -n 40 e2e.log | python3 -c "import sys; print('::error title=e2e::' + sys.stdin.read().replace('%', '%25').replace('\r', '').replace('\n', '%0A'))"
+          else
+            grep -o 'RESULT .*' e2e.log | sed 's/^/::notice title=e2e trace::/'
+            grep -o 'BASELINE .*' e2e.log | sed 's/^/::notice title=e2e baseline::/'
+          fi
+      - name: Known-vulnerability audit
+        run: make audit

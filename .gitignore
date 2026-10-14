@@ -1,0 +1,35 @@
+.DS_Store
+.env
+.idea/
+.vscode/
+*.log
+/bin/
+*.test
+*.out
+coverage.*
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+node_modules/
+coverage/
+*.db
+*.db-wal
+*.db-shm
+
+# Claude Code files (never committed)
+.claude/
+CLAUDE.local.md
+CLAUDE.md
+.mcp.json
+
+# Local tool caches (kept inside the repo)
+.tmp/
+.gocache/
+.gomodcache/
+.npm-cache/

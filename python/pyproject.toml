@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "otel-polyglot-tracing"
+version = "0.1.0"
+description = "Inventory service (FastAPI) of the otel-polyglot-tracing demo: one trace followed end to end across Go, Python and Node.js."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+# Exact pins: the OpenTelemetry API, SDK and instrumentation releases must match each other.
+dependencies = [
+    "fastapi==0.143.0",
+    "uvicorn==0.54.0",
+    "opentelemetry-api==1.45.1",
+    "opentelemetry-sdk==1.45.1",
+    "opentelemetry-exporter-otlp-proto-http==1.45.1",
+    "opentelemetry-instrumentation-fastapi==0.66b1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx2==2.13.1",
+    "pytest==9.1.1",
+    "pytest-timeout==2.4.0",
+    "ruff==0.17.0",
+    "mypy==2.4.0",
+    "pip-audit>=2.9",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 120
+
+[tool.ruff]
+line-length = 120
+extend-exclude = [".tmp", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "S", "SIM", "RUF", "N", "C4", "PT", "RET", "PIE", "PERF", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S311"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
