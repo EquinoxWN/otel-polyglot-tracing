@@ -56,6 +56,13 @@ describe("SqliteQueue", () => {
     assert.equal(queue.claim("orders", 1_000, t0 + 1_500)?.attempts, 2);
   });
 
+  it("a claim exactly at the visibility timeout is not re-delivered yet", () => {
+    publish(1);
+    assert.equal(queue.claim("orders", 1_000, 0)?.attempts, 1);
+    assert.equal(queue.claim("orders", 1_000, 1_000), undefined);
+    assert.equal(queue.claim("orders", 1_000, 1_001)?.attempts, 2);
+  });
+
   it("acked messages are never delivered again", () => {
     publish(1);
     const m = queue.claim("orders", 1_000, 0);

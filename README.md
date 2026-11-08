@@ -17,7 +17,7 @@ error in the inventory service. With trace propagation into the queue switched o
 
 ![End-to-end trace across Go, Python, the queue and Node.js](docs/proof/e2e-trace.jpg)
 
-157 unit and end-to-end tests pass, and govulncheck, pip-audit and npm audit report nothing:
+164 unit and end-to-end tests pass (157 when this screenshot was taken), and govulncheck, pip-audit and npm audit report nothing:
 
 ![Unit, end-to-end and audit runs](docs/proof/tests.jpg)
 
@@ -112,22 +112,24 @@ Full numbers, commands and the DMAIC record: [docs/results/m1.md](docs/results/m
 
 | Check | Result |
 |---|---|
-| Unit tests | Go 17 (52 with subtests), Python 46, Node.js 46, all passed |
+| Unit tests | Go 19 (54 with subtests), Python 50, Node.js 47, all passed |
 | End-to-end (`make e2e`) | 2 passed: 21/21 orders one complete trace (11 spans, 3 languages), 21 distinct trace ids, 0 leaked spans; baseline without queue propagation 0/5 connected |
 | Lint and types | gofmt, go vet, ruff, ruff format, mypy `--strict`, tsc `--strict`: clean |
 | Audit | govulncheck@v1.8.0 (Go 1.26.10), pip-audit, npm audit: no known vulnerabilities |
 | Race detector | Go `-race` runs in CI only (needs cgo) |
+| Quality check | 10 rules and 18 mutants: [docs/quality/2026-11-01.md](docs/quality/2026-11-01.md) |
 
 | Test file | Tests | What it proves |
 |---|---|---|
 | `go/internal/gateway/gateway_test.go` | 12 | Gateway spans and parents, `traceparent` sent to the inventory, caller context continued, malformed context gives a root span, 12 invalid orders never reach the inventory, error mapping, idempotent shipments, 200 random trace contexts round-trip, fuzz seeds |
-| `go/internal/otlpstub/receiver_test.go` | 5 | The receiver decodes the real Go exporter (plain and gzip) and rejects bad, oversized and gzip-bomb bodies; partial success when full; broken links stay visible |
+| `go/internal/gateway/limits_test.go` | 1 | An order one byte over the 4 KiB body limit is refused, not truncated |
+| `go/internal/otlpstub/receiver_test.go` + `spanid_test.go` | 6 | The receiver decodes the real Go exporter (plain and gzip) and rejects bad, oversized and gzip-bomb bodies; partial success when full; broken links stay visible |
 | `go/e2e/e2e_test.go` | 2 | One trace across Go, Python, the queue and Node.js for 21 orders; failure attributed to the inventory; the baseline without header injection splits every trace |
-| `python/tests/test_inventory.py` | 20 | Trace continued by FastAPI; PRODUCER span context written into the message; out-of-stock error span and no publish; 422/413 before side effects; 100 random contexts through the queue; no overselling under 16 threads |
+| `python/tests/test_inventory.py` | 24 | Trace continued by FastAPI; a retried reservation (also 16 at once) reserves and publishes once, a reused order id with other content is refused, a failed publish can be retried; PRODUCER span context written into the message; out-of-stock error span and no publish; 422/413 before side effects; 100 random contexts through the queue; no overselling under 16 threads |
 | `python/tests/test_queue.py` | 14 | Schema equals `spec/queue.sql`; header and body limits; 200 concurrent publishes get unique ids |
 | `python/tests/test_main.py` | 12 | Configuration parsing fails fast |
 | `js/test/worker.test.ts` | 15 | CONSUMER span parented by the producer span, fetch carries the trace on, `tracestate` kept, 7 malformed header cases start a new trace, poison and retry handling, no context leak between messages |
-| `js/test/queue.test.ts` | 7 | Schema equals `spec/queue.sql`; FIFO, visibility timeout, retry and dead states; 4 threads claim 200 messages, each exactly once |
+| `js/test/queue.test.ts` | 8 | Schema equals `spec/queue.sql`; FIFO, visibility timeout (exclusive at the boundary), retry and dead states; 4 threads claim 200 messages, each exactly once |
 | `js/test/message.test.ts` | 24 | Header and body parsing of untrusted messages; no prototype pollution; URL and poll interval validation |
 
 Headline numbers from the e2e run (one laptop run, not a benchmark): order accepted to shipment
