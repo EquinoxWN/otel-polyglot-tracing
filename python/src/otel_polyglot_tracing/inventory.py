@@ -164,9 +164,25 @@ def create_app(
             span.set_attribute("messaging.message.id", str(message_id))
             return message_id
 
+    # order_id -> (request, message id) of every accepted reservation, so a retried request is
+    # answered with the first result instead of reserving and publishing twice. In memory, like Stock.
+    accepted: dict[str, tuple[ReservationRequest, int]] = {}
+    accept_lock = threading.Lock()
+
     @app.post("/reservations")
     def reserve(req: ReservationRequest) -> JSONResponse:
-        """Reserve stock for one order and hand it to fulfillment."""
+        """Reserve stock for one order and hand it to fulfillment; a retry of the same order is a no-op."""
+        with accept_lock:
+            return _reserve_once(req)
+
+    def _reserve_once(req: ReservationRequest) -> JSONResponse:
+        """Reserve and publish unless this order_id was already accepted."""
+        previous = accepted.get(req.order_id)
+        if previous is not None:
+            first, first_id = previous
+            if first != req:
+                return JSONResponse({"error": "order_id already used for a different reservation"}, status_code=409)
+            return JSONResponse({"order_id": req.order_id, "message_id": first_id}, status_code=202)
         attributes: dict[str, AttributeValue] = {
             "order.id": req.order_id,
             "order.sku": req.sku,
@@ -186,6 +202,7 @@ def create_app(
         except (sqlite3.Error, MessageRejectedError):
             stock.release(req.sku, req.quantity)
             return JSONResponse({"error": "queue unavailable"}, status_code=503)
+        accepted[req.order_id] = (req, message_id)
         return JSONResponse({"order_id": req.order_id, "message_id": message_id}, status_code=202)
 
     @app.get("/healthz")

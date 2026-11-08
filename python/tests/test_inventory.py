@@ -7,6 +7,7 @@ import random
 import sqlite3
 import threading
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from conftest import Harness
@@ -179,3 +180,45 @@ def test_concurrent_reservations_never_oversell() -> None:
     assert results.count(Outcome.RESERVED) == 50
     assert results.count(Outcome.INSUFFICIENT) == 110
     assert stock.level("SKU-1") == 0
+
+
+def test_a_retried_reservation_reserves_and_publishes_once(harness: Harness) -> None:
+    first = harness.client.post("/reservations", json=ORDER)
+    again = harness.client.post("/reservations", json=ORDER)
+    assert (first.status_code, again.status_code) == (202, 202)
+    assert again.json() == first.json()
+    assert harness.stock.level("SKU-1") == 98
+    assert len(harness.queue.rows()) == 1
+
+
+def test_a_reused_order_id_with_other_content_is_refused(harness: Harness) -> None:
+    assert harness.client.post("/reservations", json=ORDER).status_code == 202
+    clash = harness.client.post("/reservations", json={**ORDER, "quantity": 1})
+    assert clash.status_code == 409
+    assert harness.stock.level("SKU-1") == 98
+    assert len(harness.queue.rows()) == 1
+
+
+def test_concurrent_retries_of_one_order_reserve_once(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    h = Harness(tmp_path)
+    with ThreadPoolExecutor(8) as pool:
+        codes = list(pool.map(lambda _: h.client.post("/reservations", json=ORDER).status_code, range(16)))
+    assert codes == [202] * 16
+    assert h.stock.level("SKU-1") == 98
+    assert len(h.queue.rows()) == 1
+
+
+def test_an_order_whose_publish_failed_can_be_retried(harness: Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    real = harness.queue.publish
+
+    def broken(*_: object) -> int:
+        """Fail once like a locked queue file."""
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(harness.queue, "publish", broken)
+    assert harness.client.post("/reservations", json=ORDER).status_code == 503
+    monkeypatch.setattr(harness.queue, "publish", real)
+    assert harness.client.post("/reservations", json=ORDER).status_code == 202
+    assert harness.stock.level("SKU-1") == 98
