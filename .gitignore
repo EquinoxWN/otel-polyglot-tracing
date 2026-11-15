@@ -32,4 +32,5 @@ CLAUDE.md
 .tmp/
 .gocache/
 .gomodcache/
+.gopath/
 .npm-cache/

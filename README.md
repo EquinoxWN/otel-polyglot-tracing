@@ -115,7 +115,7 @@ Full numbers, commands and the DMAIC record: [docs/results/m1.md](docs/results/m
 | Unit tests | Go 19 (54 with subtests), Python 50, Node.js 47, all passed |
 | End-to-end (`make e2e`) | 2 passed: 21/21 orders one complete trace (11 spans, 3 languages), 21 distinct trace ids, 0 leaked spans; baseline without queue propagation 0/5 connected |
 | Lint and types | gofmt, go vet, ruff, ruff format, mypy `--strict`, tsc `--strict`: clean |
-| Audit | govulncheck@v1.8.0 (Go 1.26.10), pip-audit, npm audit: no known vulnerabilities |
+| Audit | govulncheck@v1.8.0 (Go 1.26.11), pip-audit, npm audit: no known vulnerabilities |
 | Race detector | Go `-race` runs in CI only (needs cgo) |
 | Quality check | 10 rules and 18 mutants: [docs/quality/2026-11-01.md](docs/quality/2026-11-01.md) |
 
