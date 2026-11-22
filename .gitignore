@@ -34,3 +34,11 @@ CLAUDE.md
 .gomodcache/
 .gopath/
 .npm-cache/
+
+# Secrets (never committed)
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.tfstate

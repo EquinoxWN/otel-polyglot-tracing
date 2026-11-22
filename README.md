@@ -112,7 +112,7 @@ Full numbers, commands and the DMAIC record: [docs/results/m1.md](docs/results/m
 
 | Check | Result |
 |---|---|
-| Unit tests | Go 19 (54 with subtests), Python 50, Node.js 47, all passed |
+| Unit tests | Go 19 (54 with subtests), Python 51, Node.js 47, all passed |
 | End-to-end (`make e2e`) | 2 passed: 21/21 orders one complete trace (11 spans, 3 languages), 21 distinct trace ids, 0 leaked spans; baseline without queue propagation 0/5 connected |
 | Lint and types | gofmt, go vet, ruff, ruff format, mypy `--strict`, tsc `--strict`: clean |
 | Audit | govulncheck@v1.8.0 (Go 1.26.11), pip-audit, npm audit: no known vulnerabilities |

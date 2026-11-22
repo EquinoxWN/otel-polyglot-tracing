@@ -12,6 +12,7 @@ import re
 import sqlite3
 import time
 from collections.abc import Mapping
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -65,7 +66,7 @@ class SqliteQueue:
         """Open (and if needed create) the queue database at path."""
         self._path = str(path)
         self._timeout = busy_timeout_s
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
 

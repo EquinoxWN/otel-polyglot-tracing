@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import re
 import sqlite3
 import threading
+import warnings
 from pathlib import Path
 
 import pytest
@@ -97,3 +99,12 @@ def test_concurrent_publishers_get_unique_ids(tmp_path: Path) -> None:
         t.join()
     assert len(got) == len(set(got)) == 200
     assert len(q.rows()) == 200
+
+
+def test_opening_the_queue_closes_its_setup_connection(tmp_path: Path) -> None:
+    gc.collect()  # earlier tests' connections must not count here
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", ResourceWarning)
+        SqliteQueue(tmp_path / "q.db")
+        gc.collect()
+    assert not [w for w in caught if issubclass(w.category, ResourceWarning)]
